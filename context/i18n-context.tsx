@@ -1,0 +1,188 @@
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+
+type Locale = 'vi' | 'en';
+
+type Dictionary = Record<string, { vi: string; en: string }>;
+
+const dictionary: Dictionary = {
+  appTitle: { vi: 'Nail Salon', en: 'Nail Salon' },
+  loginTitle: { vi: 'Đăng nhập hệ thống', en: 'Sign in to system' },
+  username: { vi: 'Username', en: 'Username' },
+  password: { vi: 'Password', en: 'Password' },
+  login: { vi: 'Đăng nhập', en: 'Sign in' },
+  loggingIn: { vi: 'Đang đăng nhập...', en: 'Signing in...' },
+  saving: { vi: 'Đang lưu...', en: 'Saving...' },
+  hello: { vi: 'Xin chào', en: 'Hello' },
+  adminDashboard: { vi: 'Bảng điều khiển admin', en: 'Admin dashboard' },
+  employeeDashboard: { vi: 'Bảng điều khiển nhân viên', en: 'Employee dashboard' },
+  manageEmployees: { vi: 'Quản lý nhân viên', en: 'Manage employees' },
+  manageCustomers: { vi: 'Quản lý khách hàng', en: 'Manage customers' },
+  manageServices: { vi: 'Quản lý dịch vụ', en: 'Manage services' },
+  appointments: { vi: 'Lịch hẹn', en: 'Appointments' },
+  schedules: { vi: 'Lịch làm việc', en: 'Schedules' },
+  assignments: { vi: 'Giao dịch vụ', en: 'Assignments' },
+  commissions: { vi: 'Hoa hồng', en: 'Commissions' },
+  payrolls: { vi: 'Bảng lương', en: 'Payrolls' },
+  employeesTitle: { vi: 'Nhân viên', en: 'Employees' },
+  customersTitle: { vi: 'Khách hàng', en: 'Customers' },
+  servicesTitle: { vi: 'Dịch vụ', en: 'Services' },
+  appointmentsTitle: { vi: 'Lịch hẹn', en: 'Appointments' },
+  assignmentsTitle: { vi: 'Giao dịch vụ', en: 'Assignments' },
+  schedulesTitle: { vi: 'Lịch làm việc', en: 'Work schedules' },
+  commissionsTitle: { vi: 'Hoa hồng', en: 'Commissions' },
+  employeeSchedule: { vi: 'Lịch làm việc (check-in)', en: 'Schedule (check-in)' },
+  employeeAssignments: { vi: 'Dịch vụ được giao + phí', en: 'Assigned services + fee' },
+  employeeCommissions: { vi: 'Hoa hồng của tôi', en: 'My commissions' },
+  employeePayrolls: { vi: 'Thu nhập của tôi', en: 'My earnings' },
+  employeeAssignmentsTitle: { vi: 'Dịch vụ được giao', en: 'Assigned services' },
+  employeeSchedulesTitle: { vi: 'Lịch làm việc', en: 'Work schedule' },
+  employeeCommissionsTitle: { vi: 'Hoa hồng của tôi', en: 'My commissions' },
+  employeeHeaderTitle: { vi: 'Nhân viên', en: 'Employee' },
+  logout: { vi: 'Đăng xuất', en: 'Sign out' },
+  overview: { vi: 'Tổng quan', en: 'Overview' },
+  quickActions: { vi: 'Truy cập nhanh', en: 'Quick actions' },
+  searchPlaceholder: { vi: 'Tìm kiếm...', en: 'Search...' },
+  searchEmployeesLabel: { vi: 'Tìm nhân viên', en: 'Search employees' },
+  searchEmployeesPlaceholder: { vi: 'Nhập tên hoặc số điện thoại...', en: 'Enter name or phone...' },
+  searchCustomersLabel: { vi: 'Tìm khách hàng', en: 'Search customers' },
+  searchCustomersPlaceholder: { vi: 'Nhập tên hoặc số điện thoại...', en: 'Enter name or phone...' },
+  searchServicesLabel: { vi: 'Tìm dịch vụ', en: 'Search services' },
+  searchServicesPlaceholder: { vi: 'Nhập tên dịch vụ...', en: 'Enter service name...' },
+  searchAppointmentsLabel: { vi: 'Tìm lịch hẹn', en: 'Search appointments' },
+  searchAppointmentsPlaceholder: { vi: 'Nhập tên khách, dịch vụ, nhân viên...', en: 'Enter customer, service, employee...' },
+  searchAssignmentsLabel: { vi: 'Tìm giao dịch vụ', en: 'Search assignments' },
+  searchAssignmentsPlaceholder: { vi: 'Nhập tên khách, dịch vụ, nhân viên...', en: 'Enter customer, service, employee...' },
+  searchSchedulesLabel: { vi: 'Tìm lịch làm việc', en: 'Search schedules' },
+  searchSchedulesPlaceholder: { vi: 'Nhập tên nhân viên hoặc ghi chú...', en: 'Enter employee or note...' },
+  searchCommissionsLabel: { vi: 'Tìm hoa hồng', en: 'Search commissions' },
+  searchCommissionsPlaceholder: { vi: 'Nhập tên nhân viên...', en: 'Enter employee name...' },
+  searchPayrollsLabel: { vi: 'Tìm bảng lương', en: 'Search payrolls' },
+  searchPayrollsPlaceholder: { vi: 'Nhập tên nhân viên...', en: 'Enter employee name...' },
+  totalCustomers: { vi: 'Khách hàng', en: 'Customers' },
+  totalServices: { vi: 'Dịch vụ', en: 'Services' },
+  totalAppointments: { vi: 'Lịch hẹn', en: 'Appointments' },
+  totalAssignments: { vi: 'Giao dịch vụ', en: 'Assignments' },
+  todaySchedules: { vi: 'Lịch hôm nay', en: 'Today schedules' },
+  pendingAssignments: { vi: 'Dịch vụ chờ', en: 'Pending services' },
+  myCommissions: { vi: 'Hoa hồng', en: 'Commissions' },
+  createPayroll: { vi: 'Tạo bảng lương', en: 'Create payroll' },
+  editPayroll: { vi: 'Chỉnh sửa bảng lương', en: 'Edit payroll' },
+  updatePayroll: { vi: 'Cập nhật bảng lương', en: 'Update payroll' },
+  addEmployee: { vi: 'Thêm nhân viên', en: 'Add employee' },
+  saveEmployee: { vi: 'Lưu nhân viên', en: 'Save employee' },
+  employeeInfoTitle: { vi: 'Thông tin nhân viên', en: 'Employee details' },
+  addCustomer: { vi: 'Thêm khách hàng', en: 'Add customer' },
+  editCustomer: { vi: 'Chỉnh sửa khách hàng', en: 'Edit customer' },
+  updateCustomer: { vi: 'Cập nhật khách hàng', en: 'Update customer' },
+  addService: { vi: 'Thêm dịch vụ', en: 'Add service' },
+  editService: { vi: 'Chỉnh sửa dịch vụ', en: 'Edit service' },
+  updateService: { vi: 'Cập nhật dịch vụ', en: 'Update service' },
+  createAppointment: { vi: 'Tạo lịch hẹn', en: 'Create appointment' },
+  editAppointment: { vi: 'Chỉnh sửa lịch hẹn', en: 'Edit appointment' },
+  updateAppointment: { vi: 'Cập nhật lịch hẹn', en: 'Update appointment' },
+  createAssignment: { vi: 'Giao dịch vụ', en: 'Create assignment' },
+  editAssignment: { vi: 'Chỉnh sửa giao dịch vụ', en: 'Edit assignment' },
+  updateAssignment: { vi: 'Cập nhật giao dịch vụ', en: 'Update assignment' },
+  createSchedule: { vi: 'Tạo lịch', en: 'Create schedule' },
+  createScheduleTitle: { vi: 'Tạo lịch làm việc', en: 'Create schedule' },
+  editSchedule: { vi: 'Chỉnh sửa lịch làm việc', en: 'Edit schedule' },
+  updateSchedule: { vi: 'Cập nhật lịch', en: 'Update schedule' },
+  selectEmployee: { vi: 'Chọn nhân viên', en: 'Select employee' },
+  selectCustomer: { vi: 'Chọn khách hàng', en: 'Select customer' },
+  selectService: { vi: 'Chọn dịch vụ', en: 'Select service' },
+  assignEmployeeOptional: { vi: 'Gán nhân viên (tuỳ chọn)', en: 'Assign employee (optional)' },
+  period: { vi: 'Kỳ', en: 'Period' },
+  periodStart: { vi: 'Từ ngày', en: 'From date' },
+  periodEnd: { vi: 'Đến ngày', en: 'To date' },
+  earnings: { vi: 'Thu nhập', en: 'Earnings' },
+  totalSalary: { vi: 'Tổng thu nhập', en: 'Total earnings' },
+  serviceSales: { vi: 'Doanh thu dịch vụ', en: 'Service sales' },
+  supplyFee: { vi: 'Phí vật tư', en: 'Supply fee' },
+  netServiceSales: { vi: 'Doanh thu dịch vụ ròng', en: 'Net service sales' },
+  serviceCommission: { vi: 'Hoa hồng dịch vụ', en: 'Service commission' },
+  tip: { vi: 'Tip', en: 'Tip' },
+  productSales: { vi: 'Doanh thu sản phẩm', en: 'Product sales' },
+  workingHours: { vi: 'Giờ làm việc', en: 'Working hours' },
+  fee: { vi: 'Phí', en: 'Fee' },
+  price: { vi: 'Giá', en: 'Price' },
+  durationMinutes: { vi: 'Thời lượng (phút)', en: 'Duration (minutes)' },
+  status: { vi: 'Trạng thái', en: 'Status' },
+  time: { vi: 'Thời gian', en: 'Time' },
+  schedule: { vi: 'Lịch', en: 'Schedule' },
+  startAt: { vi: 'Bắt đầu', en: 'Start' },
+  endAt: { vi: 'Kết thúc', en: 'End' },
+  selectDateTime: { vi: 'Chọn ngày & giờ', en: 'Select date & time' },
+  note: { vi: 'Ghi chú', en: 'Note' },
+  owner: { vi: 'Chủ', en: 'Owner' },
+  employee: { vi: 'Nhân viên', en: 'Employee' },
+  phone: { vi: 'Số điện thoại', en: 'Phone' },
+  displayName: { vi: 'Tên hiển thị', en: 'Display name' },
+  role: { vi: 'Vai trò', en: 'Role' },
+  roleEmployee: { vi: 'Nhân viên', en: 'Employee' },
+  roleAdmin: { vi: 'Admin', en: 'Admin' },
+  active: { vi: 'Trạng thái', en: 'Active' },
+  yes: { vi: 'Có', en: 'Yes' },
+  no: { vi: 'Không', en: 'No' },
+  close: { vi: 'Đóng', en: 'Close' },
+  edit: { vi: 'Chỉnh sửa', en: 'Edit' },
+  delete: { vi: 'Xóa', en: 'Delete' },
+  checkIn: { vi: 'Check-in', en: 'Check-in' },
+  complete: { vi: 'Hoàn thành', en: 'Complete' },
+  notCheckedIn: { vi: 'Chưa check-in', en: 'Not checked in' },
+  selected: { vi: 'Đã chọn', en: 'Selected' },
+  loginFailed: { vi: 'Đăng nhập thất bại', en: 'Login failed' },
+  errorUsernameRequired: { vi: 'Vui lòng nhập username', en: 'Please enter username' },
+  defaultPasswordHint: { vi: 'Để trống = mật khẩu mặc định', en: 'Leave blank = default password' },
+  errorEmployeeRequired: { vi: 'Vui lòng chọn nhân viên', en: 'Please select an employee' },
+  errorPayrollPeriod: { vi: 'Vui lòng nhập kỳ bảng lương', en: 'Please enter payroll period' },
+  errorCustomerRequired: { vi: 'Vui lòng nhập tên khách hàng', en: 'Please enter customer name' },
+  errorServiceRequired: { vi: 'Vui lòng nhập tên và giá dịch vụ', en: 'Please enter service name and price' },
+  errorAppointmentRequired: { vi: 'Vui lòng chọn khách hàng, dịch vụ và thời gian', en: 'Please select customer, service, and time' },
+  errorAssignmentRequired: { vi: 'Vui lòng chọn khách hàng, dịch vụ, nhân viên và phí', en: 'Please select customer, service, employee, and fee' },
+  errorScheduleRequired: { vi: 'Vui lòng chọn nhân viên và thời gian', en: 'Please select employee and time' },
+  customerFallback: { vi: 'Khách', en: 'Customer' },
+  serviceFallback: { vi: 'Dịch vụ', en: 'Service' },
+  employeeFallback: { vi: 'Nhân viên', en: 'Employee' },
+  noData: { vi: 'Chưa có dữ liệu', en: 'No data' },
+  customerNameVi: { vi: 'Tên khách (VI)', en: 'Customer name (VI)' },
+  customerNameEn: { vi: 'Tên khách (EN)', en: 'Customer name (EN)' },
+  serviceNameVi: { vi: 'Tên dịch vụ (VI)', en: 'Service name (VI)' },
+  serviceNameEn: { vi: 'Tên dịch vụ (EN)', en: 'Service name (EN)' },
+  customerNameLabel: { vi: 'Tên khách', en: 'Customer name' },
+  serviceNameLabel: { vi: 'Tên dịch vụ', en: 'Service name' },
+  viLabel: { vi: 'VI', en: 'VI' },
+  enLabel: { vi: 'EN', en: 'EN' },
+};
+
+type I18nContextValue = {
+  locale: Locale;
+  toggleLocale: () => void;
+  t: (key: keyof typeof dictionary) => string;
+};
+
+const I18nContext = createContext<I18nContextValue | undefined>(undefined);
+
+export function I18nProvider({ children }: { children: React.ReactNode }) {
+  const [locale, setLocale] = useState<Locale>('vi');
+
+  const toggleLocale = useCallback(() => {
+    setLocale((prev) => (prev === 'vi' ? 'en' : 'vi'));
+  }, []);
+
+  const t = useCallback(
+    (key: keyof typeof dictionary) => dictionary[key][locale],
+    [locale],
+  );
+
+  const value = useMemo(() => ({ locale, toggleLocale, t }), [locale, toggleLocale, t]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n() {
+  const ctx = useContext(I18nContext);
+  if (!ctx) {
+    throw new Error('useI18n must be used within I18nProvider');
+  }
+  return ctx;
+}
