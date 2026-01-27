@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/auth-context';
@@ -17,11 +17,48 @@ type Appointment = {
   scheduledAt: string;
 };
 
+type CalendarDay = { date: Date };
+type DayAppointment = {
+  id: string;
+  timeLabel: string;
+  customerLabel: string;
+  serviceLabel: string;
+  status: string;
+};
+
+const PERSON_COL_WIDTH = 86;
+const DAY_COL_WIDTH = 86;
+
+const formatTime24 = (value: Date, locale: string) =>
+  value.toLocaleTimeString(locale === 'vi' ? 'vi-VN' : 'en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+const toDateKey = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const buildWeekDays = (value: Date): CalendarDay[] => {
+  const base = new Date(value);
+  const day = base.getDay();
+  const offset = (day + 6) % 7;
+  const monday = new Date(base.getFullYear(), base.getMonth(), base.getDate() - offset);
+  return Array.from({ length: 7 }, (_, index) => ({
+    date: new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index),
+  }));
+};
+
 export default function EmployeeAppointmentsScreen() {
   const { token } = useAuth();
   const { t, locale } = useI18n();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [calendarWeek, setCalendarWeek] = useState(new Date());
 
   const load = async () => {
     try {
@@ -60,6 +97,61 @@ export default function EmployeeAppointmentsScreen() {
     [appointments],
   );
 
+  const dayLabels = useMemo(() => {
+    return locale === 'vi'
+      ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  }, [locale]);
+
+  const weekLabel = useMemo(() => {
+    const weekDays = buildWeekDays(calendarWeek);
+    const start = weekDays[0].date;
+    const end = weekDays[6].date;
+    const format = (value: Date) =>
+      value.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', {
+        day: '2-digit',
+        month: '2-digit',
+      });
+    return `${format(start)} - ${format(end)}`;
+  }, [calendarWeek, locale]);
+
+  const weekDays = useMemo(() => buildWeekDays(calendarWeek), [calendarWeek]);
+
+  const weekDayKeys = useMemo(() => {
+    const keys = new Set<string>();
+    weekDays.forEach((day) => keys.add(toDateKey(day.date)));
+    return keys;
+  }, [weekDays]);
+
+  const rosterMap = useMemo(() => {
+    const map = new Map<string, DayAppointment[]>();
+    appointments.forEach((item) => {
+      const scheduledDate = new Date(item.scheduledAt);
+      const dayKey = toDateKey(scheduledDate);
+      if (!weekDayKeys.has(dayKey)) return;
+      const timeLabel = formatTime24(scheduledDate, locale);
+      const customerLabel =
+        locale === 'en'
+          ? item.customer?.nameEn ?? item.customer?.name ?? t('customerFallback')
+          : item.customer?.name ?? item.customer?.nameEn ?? t('customerFallback');
+      const serviceLabel =
+        locale === 'en'
+          ? item.service?.nameEn ?? item.service?.name ?? t('serviceFallback')
+          : item.service?.name ?? item.service?.nameEn ?? t('serviceFallback');
+      const entry: DayAppointment = {
+        id: item._id,
+        timeLabel,
+        customerLabel,
+        serviceLabel,
+        status: item.status,
+      };
+      const list = map.get(dayKey) ?? [];
+      list.push(entry);
+      map.set(dayKey, list);
+    });
+    return map;
+  }, [appointments, locale, t, weekDayKeys]);
+
   return (
     <ThemedView style={styles.container} lightColor={Palette.background}>
       <FlatList
@@ -68,6 +160,98 @@ export default function EmployeeAppointmentsScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <ThemedText type="title">{t('employeeAppointmentsTitle')}</ThemedText>
+            <View style={styles.calendarCard}>
+              <View style={styles.calendarHeader}>
+                <ThemedText type="defaultSemiBold">{t('schedule')}</ThemedText>
+                <View style={styles.calendarNav}>
+                  <Pressable
+                    onPress={() =>
+                      setCalendarWeek(
+                        new Date(
+                          calendarWeek.getFullYear(),
+                          calendarWeek.getMonth(),
+                          calendarWeek.getDate() - 7,
+                        ),
+                      )
+                    }
+                    style={styles.navButton}
+                  >
+                    <ThemedText style={styles.navText}>{'<'}</ThemedText>
+                  </Pressable>
+                  <ThemedText style={styles.monthText}>{weekLabel}</ThemedText>
+                  <Pressable
+                    onPress={() =>
+                      setCalendarWeek(
+                        new Date(
+                          calendarWeek.getFullYear(),
+                          calendarWeek.getMonth(),
+                          calendarWeek.getDate() + 7,
+                        ),
+                      )
+                    }
+                    style={styles.navButton}
+                  >
+                    <ThemedText style={styles.navText}>{'>'}</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.rosterGrid}>
+                  <View style={styles.rosterHeaderRow}>
+                    <View style={[styles.rosterCell, styles.personHeader]}>
+                      <ThemedText style={styles.rosterHeaderText}>{t('employee')}</ThemedText>
+                    </View>
+                    {weekDays.map((day, index) => (
+                      <View key={dayLabels[index]} style={[styles.rosterCell, styles.dayHeader]}>
+                        <ThemedText style={styles.rosterHeaderText}>
+                          {dayLabels[index]} {day.date.getDate()}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.rosterRow}>
+                    <View style={[styles.rosterCell, styles.personCell]}>
+                      <ThemedText style={styles.personText} numberOfLines={1}>
+                        {t('me')}
+                      </ThemedText>
+                    </View>
+                    {weekDays.map((day) => {
+                      const dayKey = toDateKey(day.date);
+                      const dayAppointments = rosterMap.get(dayKey) ?? [];
+                      return (
+                        <View key={dayKey} style={[styles.rosterCell, styles.shiftCell]}>
+                          {dayAppointments.length === 0 ? null : (
+                            <View style={styles.shiftStack}>
+                              {dayAppointments.map((appointment) => (
+                                <Pressable
+                                  key={appointment.id}
+                                  onPress={() =>
+                                    appointment.status === 'scheduled'
+                                      ? startAppointment(appointment.id)
+                                      : null
+                                  }
+                                  style={styles.shiftPill}
+                                >
+                                  <ThemedText style={styles.shiftTime}>
+                                    {appointment.timeLabel}
+                                  </ThemedText>
+                                  <ThemedText style={styles.shiftMeta} numberOfLines={1}>
+                                    {appointment.customerLabel}
+                                  </ThemedText>
+                                  <ThemedText style={styles.shiftMeta} numberOfLines={1}>
+                                    {appointment.serviceLabel}
+                                  </ThemedText>
+                                </Pressable>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              </ScrollView>
+            </View>
             {error && <ThemedText style={styles.error}>{error}</ThemedText>}
           </View>
         }
@@ -159,6 +343,107 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 12,
+  },
+  calendarCard: {
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    borderRadius: 16,
+    padding: 12,
+    gap: 10,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  calendarNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  navButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.background,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  navText: {
+    fontWeight: '700',
+    color: Palette.navy,
+  },
+  monthText: {
+    fontWeight: '600',
+    color: Palette.navy,
+  },
+  rosterGrid: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    overflow: 'hidden',
+    minWidth: PERSON_COL_WIDTH + DAY_COL_WIDTH * 7,
+  },
+  rosterHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f3f8',
+  },
+  rosterRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: Palette.border,
+  },
+  rosterCell: {
+    borderRightWidth: 1,
+    borderRightColor: Palette.border,
+    padding: 8,
+    minHeight: 64,
+    justifyContent: 'center',
+  },
+  personHeader: {
+    width: PERSON_COL_WIDTH,
+  },
+  dayHeader: {
+    width: DAY_COL_WIDTH,
+  },
+  rosterHeaderText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Palette.navy,
+  },
+  personCell: {
+    backgroundColor: '#f8f9fc',
+    width: PERSON_COL_WIDTH,
+  },
+  personText: {
+    fontWeight: '600',
+    color: Palette.navy,
+  },
+  shiftCell: {
+    backgroundColor: '#fff',
+    width: DAY_COL_WIDTH,
+  },
+  shiftStack: {
+    gap: 6,
+  },
+  shiftPill: {
+    width: '100%',
+    backgroundColor: `${Palette.accentPurple}1f`,
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  shiftTime: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Palette.navy,
+  },
+  shiftMeta: {
+    fontSize: 9,
+    color: Palette.mutedText,
   },
   cardHeaderRow: {
     flexDirection: 'row',
