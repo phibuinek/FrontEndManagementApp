@@ -1,12 +1,11 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/auth-context';
 import { useI18n } from '@/context/i18n-context';
 import { LanguageToggle } from '@/components/ui/language-toggle';
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { apiGet } from '@/lib/api';
 import { Palette } from '@/constants/theme';
 
@@ -18,6 +17,7 @@ export default function EmployeeHome() {
     pendingAssignments: 0,
     commissions: 0,
   });
+  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -40,6 +40,29 @@ export default function EmployeeHome() {
     load();
   }, [token]);
 
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/(auth)/login');
+  };
+
+  const actions = useMemo(
+    () => [
+      { label: t('employeeSchedule'), color: Palette.accentTeal, path: '/(employee)/schedule' },
+      { label: t('employeeAppointments'), color: Palette.accentPurple, path: '/(employee)/appointments' },
+      { label: t('employeeAssignments'), color: Palette.accentBlue, path: '/(employee)/assignments' },
+      { label: t('employeeCommissions'), color: Palette.accentPink, path: '/(employee)/commissions' },
+      { label: t('employeePayrolls'), color: Palette.accentGreen, path: '/(employee)/payrolls' },
+      { label: t('changePassword'), color: Palette.accentOrange, path: '/(employee)/change-password' },
+    ],
+    [t],
+  );
+
+  const filteredActions = useMemo(() => {
+    const term = searchText.trim().toLowerCase();
+    if (!term) return actions;
+    return actions.filter((item) => item.label.toLowerCase().includes(term));
+  }, [actions, searchText]);
+
   return (
     <ThemedView style={styles.container} lightColor={Palette.background}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -55,56 +78,64 @@ export default function EmployeeHome() {
             </View>
             <LanguageToggle />
           </View>
-        </View>
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { borderColor: Palette.accentBlue }]}>
-            <View style={[styles.statAccent, { backgroundColor: Palette.accentBlue }]} />
-            <View style={styles.statHeader}>
-              <View style={[styles.dot, { backgroundColor: Palette.accentBlue }]} />
-              <ThemedText style={[styles.statValue, { color: Palette.accentBlue }]}>{stats.schedules}</ThemedText>
-            </View>
-            <ThemedText style={styles.statLabel}>{t('todaySchedules')}</ThemedText>
-          </View>
-          <View style={[styles.statCard, { borderColor: Palette.accentOrange }]}>
-            <View style={[styles.statAccent, { backgroundColor: Palette.accentOrange }]} />
-            <View style={styles.statHeader}>
-              <View style={[styles.dot, { backgroundColor: Palette.accentOrange }]} />
-              <ThemedText style={[styles.statValue, { color: Palette.accentOrange }]}>{stats.pendingAssignments}</ThemedText>
-            </View>
-            <ThemedText style={styles.statLabel}>{t('pendingAssignments')}</ThemedText>
-          </View>
-          <View style={[styles.statCard, { borderColor: Palette.accentGreen }]}>
-            <View style={[styles.statAccent, { backgroundColor: Palette.accentGreen }]} />
-            <View style={styles.statHeader}>
-              <View style={[styles.dot, { backgroundColor: Palette.accentGreen }]} />
-              <ThemedText style={[styles.statValue, { color: Palette.accentGreen }]}>{stats.commissions}</ThemedText>
-            </View>
-            <ThemedText style={styles.statLabel}>{t('myCommissions')}</ThemedText>
-          </View>
-        </View>
-        <View style={styles.links}>
-          <PrimaryButton
-            label={t('employeeSchedule')}
-            onPress={() => router.push('/(employee)/schedule')}
-          />
-          <PrimaryButton
-            label={t('employeeAssignments')}
-            onPress={() => router.push('/(employee)/assignments')}
-          />
-          <PrimaryButton
-            label={t('employeeCommissions')}
-            onPress={() => router.push('/(employee)/commissions')}
-          />
-          <PrimaryButton
-            label={t('employeePayrolls')}
-            onPress={() => router.push('/(employee)/payrolls')}
+          <TextInput
+            placeholder={t('searchPlaceholder')}
+            placeholderTextColor="#a9b3c6"
+            style={styles.search}
+            value={searchText}
+            onChangeText={setSearchText}
           />
         </View>
-        <ThemedText style={styles.logout} onPress={logout}>
+        <View style={styles.section}>
+          <ThemedText type="subtitle">{t('overview')}</ThemedText>
+          <View style={styles.statsGrid}>
+            <StatCard label={t('todaySchedules')} value={stats.schedules} color={Palette.accentBlue} />
+            <StatCard label={t('pendingAssignments')} value={stats.pendingAssignments} color={Palette.accentOrange} />
+            <StatCard label={t('myCommissions')} value={stats.commissions} color={Palette.accentGreen} />
+          </View>
+        </View>
+        <View style={styles.section}>
+          <ThemedText type="subtitle">{t('quickActions')}</ThemedText>
+          <View style={styles.actionsGrid}>
+            {filteredActions.map((item) => (
+              <ActionCard
+                key={item.path}
+                label={item.label}
+                color={item.color}
+                onPress={() => router.push(item.path)}
+              />
+            ))}
+          </View>
+        </View>
+        <ThemedText style={styles.logout} onPress={handleLogout}>
           {t('logout')}
         </ThemedText>
       </ScrollView>
     </ThemedView>
+  );
+}
+
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <View style={[styles.statCard, { borderColor: color }]}>
+      <View style={[styles.statAccent, { backgroundColor: color }]} />
+      <View style={styles.statHeader}>
+        <View style={[styles.dot, { backgroundColor: color }]} />
+        <ThemedText style={[styles.statValue, { color }]}>{value}</ThemedText>
+      </View>
+      <ThemedText style={styles.statLabel}>{label}</ThemedText>
+    </View>
+  );
+}
+
+function ActionCard({ label, color, onPress }: { label: string; color: string; onPress: () => void }) {
+  return (
+    <Pressable style={styles.actionCard} onPress={onPress}>
+      <View style={[styles.actionBadge, { backgroundColor: `${color}22` }]}>
+        <View style={[styles.dot, { backgroundColor: color }]} />
+      </View>
+      <ThemedText style={styles.actionLabel}>{label}</ThemedText>
+    </Pressable>
   );
 }
 
@@ -135,20 +166,27 @@ const styles = StyleSheet.create({
   heroSubtitle: {
     marginTop: 4,
   },
-  subtitle: {
-    marginBottom: 12,
+  search: {
+    borderWidth: 1,
+    borderColor: Palette.navyDark,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#203254',
+    color: '#fff',
   },
-  links: {
-    gap: 10,
+  section: {
+    gap: 12,
   },
-  statsRow: {
+  statsGrid: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 12,
   },
   statCard: {
-    flex: 1,
+    width: '48%',
     borderRadius: 16,
-    padding: 12,
+    padding: 14,
     backgroundColor: Palette.surface,
     borderWidth: 1,
     borderColor: Palette.border,
@@ -159,7 +197,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
   },
   statHeader: {
@@ -169,19 +207,47 @@ const styles = StyleSheet.create({
   },
   statAccent: {
     height: 6,
-    width: 36,
+    width: 40,
     borderRadius: 999,
     marginBottom: 8,
   },
   statLabel: {
     color: Palette.mutedText,
-    marginTop: 4,
-    fontSize: 12,
+    marginTop: 6,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 999,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionCard: {
+    width: '48%',
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  actionLabel: {
+    fontWeight: '600',
+  },
+  actionBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   logout: {
     marginTop: 24,

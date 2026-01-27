@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { ThemedText } from '@/components/themed-text';
 import { Palette } from '@/constants/theme';
@@ -69,6 +70,7 @@ export function DateTimeInput({ label, value, onChange }: DateTimeInputProps) {
         }}
         accessibilityRole="button"
       >
+        <Ionicons name="calendar-outline" size={18} color={Palette.mutedText} />
         <ThemedText style={styles.valueText}>{displayValue}</ThemedText>
       </Pressable>
       {showPicker && Platform.OS === 'ios' && (
@@ -107,6 +109,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     backgroundColor: Palette.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   valueText: {
     color: Palette.text,

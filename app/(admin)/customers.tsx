@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/auth-context';
@@ -7,6 +7,7 @@ import { useI18n } from '@/context/i18n-context';
 import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { FormInput } from '@/components/ui/form-input';
+import { IconButton } from '@/components/ui/icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Section } from '@/components/ui/section';
 import { Palette } from '@/constants/theme';
@@ -52,6 +53,7 @@ export default function CustomersScreen() {
       setError(t('errorCustomerRequired'));
       return;
     }
+    const isEditing = Boolean(editingId);
     setError(null);
     setLoading(true);
     try {
@@ -80,6 +82,12 @@ export default function CustomersScreen() {
       setNote('');
       setEditingId(null);
       await load();
+      if (!isEditing) {
+        setShowCreate(false);
+        Alert.alert(t('successTitle'), t('createSuccess'));
+      } else {
+        Alert.alert(t('successTitle'), t('updateSuccess'));
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -92,6 +100,7 @@ export default function CustomersScreen() {
     try {
       await apiDelete(`/customers/${id}`, token);
       await load();
+      Alert.alert(t('successTitle'), t('deleteSuccess'));
     } catch (err) {
       setError((err as Error).message);
     }
@@ -170,17 +179,25 @@ export default function CustomersScreen() {
         }
         renderItem={({ item }) => (
           <Card>
-            <ThemedText type="defaultSemiBold">
-              {locale === 'en' && item.nameEn ? item.nameEn : item.name}
-            </ThemedText>
+            <View style={styles.cardHeaderRow}>
+              <ThemedText type="defaultSemiBold">
+                {locale === 'en' && item.nameEn ? item.nameEn : item.name}
+              </ThemedText>
+              <View style={styles.actionsRow}>
+                <IconButton
+                  icon="create-outline"
+                  variant="primary"
+                  onPress={() => handleEdit(item)}
+                />
+                <IconButton
+                  icon="trash-outline"
+                  variant="danger"
+                  onPress={() => handleDelete(item._id)}
+                />
+              </View>
+            </View>
             <ThemedText>{t('phone')}: {item.phone ?? '-'}</ThemedText>
             <ThemedText>{t('note')}: {item.note ?? '-'}</ThemedText>
-            <PrimaryButton label={t('edit')} variant="secondary" onPress={() => handleEdit(item)} />
-            <PrimaryButton
-              label={t('delete')}
-              variant="danger"
-              onPress={() => handleDelete(item._id)}
-            />
           </Card>
         )}
         contentContainerStyle={styles.content}
@@ -199,6 +216,16 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 12,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
   error: {
     color: '#c00',

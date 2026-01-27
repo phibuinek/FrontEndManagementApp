@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/auth-context';
@@ -54,70 +54,75 @@ export default function EmployeePayrollsScreen() {
 
   return (
     <ThemedView style={styles.container} lightColor={Palette.background}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <ThemedText type="title">{t('employeePayrolls')}</ThemedText>
-        {error && <ThemedText style={styles.error}>{error}</ThemedText>}
-        <FlatList
-          data={payrolls}
-          keyExtractor={(item) => item._id}
-          scrollEnabled={false}
-          renderItem={({ item }) => {
-            const totalSalary = item.serviceCommission + item.tip + item.productSales;
-            return (
-              <Card style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <ThemedText type="defaultSemiBold">{t('period')}</ThemedText>
-                  <ThemedText style={styles.periodText}>
-                    {formatDate(item.periodStart)} - {formatDate(item.periodEnd)}
-                  </ThemedText>
-                </View>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionBadge} />
-                  <ThemedText type="defaultSemiBold">{t('earnings')}</ThemedText>
-                </View>
-                <View style={styles.row}>
-                  <ThemedText style={styles.rowLabel}>{t('serviceSales')}</ThemedText>
-                  <ThemedText>{formatMoney(item.serviceSales)}</ThemedText>
-                </View>
-                <View style={styles.row}>
-                  <ThemedText style={styles.rowLabel}>{t('supplyFee')}</ThemedText>
-                  <ThemedText>{formatMoney(item.supplyFee)}</ThemedText>
-                </View>
-                <View style={styles.row}>
-                  <ThemedText style={styles.rowLabel}>{t('netServiceSales')}</ThemedText>
-                  <ThemedText>{formatMoney(item.netServiceSales)}</ThemedText>
-                </View>
-                <View style={styles.row}>
-                  <ThemedText style={styles.rowLabel}>{t('serviceCommission')}</ThemedText>
-                  <ThemedText>{formatMoney(item.serviceCommission)}</ThemedText>
-                </View>
-                <View style={styles.row}>
-                  <ThemedText style={styles.rowLabel}>{t('tip')}</ThemedText>
-                  <ThemedText>{formatMoney(item.tip)}</ThemedText>
-                </View>
-                <View style={styles.row}>
-                  <ThemedText style={styles.rowLabel}>{t('productSales')}</ThemedText>
-                  <ThemedText>{formatMoney(item.productSales)}</ThemedText>
-                </View>
-                <View style={styles.row}>
-                  <ThemedText style={styles.rowLabel}>{t('workingHours')}</ThemedText>
-                  <ThemedText>{item.workingHours}</ThemedText>
-                </View>
-                <View style={styles.totalBlock}>
-                  <ThemedText type="subtitle">{t('totalSalary')}</ThemedText>
-                  <ThemedText style={styles.totalValue}>
-                    {formatMoney(totalSalary)}
-                  </ThemedText>
-                </View>
-              </Card>
-            );
-          }}
-        />
-        {payrolls.length === 0 && !error && (
-          <ThemedText style={styles.emptyText}>{t('noData')}</ThemedText>
-        )}
-      </ScrollView>
+      <FlatList
+        data={payrolls}
+        keyExtractor={(item) => item._id}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <ThemedText type="title">{t('employeePayrolls')}</ThemedText>
+            {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+          </View>
+        }
+        renderItem={({ item }) => {
+          const totalSalary = item.serviceCommission + item.tip + item.productSales;
+          return (
+            <Card style={styles.card}>
+              <View style={styles.cardHeader}>
+                <ThemedText type="defaultSemiBold">{t('period')}</ThemedText>
+                <ThemedText style={styles.periodText}>
+                  {formatDate(item.periodStart)} - {formatDate(item.periodEnd)}
+                </ThemedText>
+              </View>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionBadge} />
+                <ThemedText type="defaultSemiBold">{t('earnings')}</ThemedText>
+              </View>
+              <View style={styles.infoRow}>
+                <InfoPill label={t('serviceSales')} value={formatMoney(item.serviceSales)} color={Palette.accentBlue} />
+                <InfoPill label={t('supplyFee')} value={formatMoney(item.supplyFee)} color={Palette.accentOrange} />
+                <InfoPill label={t('netServiceSales')} value={formatMoney(item.netServiceSales)} color={Palette.accentTeal} />
+                <InfoPill label={t('serviceCommission')} value={formatMoney(item.serviceCommission)} color={Palette.accentGreen} />
+                <InfoPill label={t('tip')} value={formatMoney(item.tip)} color={Palette.accentPink} />
+                <InfoPill label={t('productSales')} value={formatMoney(item.productSales)} color={Palette.accentPurple} />
+                <InfoPill label={t('workingHours')} value={String(item.workingHours)} color={Palette.accentBlue} />
+              </View>
+              <View style={styles.totalBlock}>
+                <ThemedText type="subtitle">{t('totalSalary')}</ThemedText>
+                <ThemedText style={styles.totalValue}>
+                  {formatMoney(totalSalary)}
+                </ThemedText>
+              </View>
+            </Card>
+          );
+        }}
+        ListEmptyComponent={
+          payrolls.length === 0 && !error ? (
+            <ThemedText style={styles.emptyText}>{t('noData')}</ThemedText>
+          ) : null
+        }
+        contentContainerStyle={styles.scrollContent}
+      />
     </ThemedView>
+  );
+}
+
+function InfoPill({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: string;
+}) {
+  return (
+    <View style={styles.infoPill}>
+      <View style={[styles.infoDot, { backgroundColor: color }]} />
+      <View style={styles.infoContent}>
+        <ThemedText style={styles.infoLabel}>{label}</ThemedText>
+        <ThemedText style={styles.infoValue}>{value}</ThemedText>
+      </View>
+    </View>
   );
 }
 
@@ -127,6 +132,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    gap: 12,
+  },
+  header: {
     gap: 12,
   },
   error: {
@@ -157,13 +165,38 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: Palette.accentBlue,
   },
-  row: {
+  infoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  rowLabel: {
+  infoPill: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    flexGrow: 1,
+    flexBasis: '48%',
+  },
+  infoDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    marginTop: 4,
+  },
+  infoContent: {
+    gap: 2,
+  },
+  infoLabel: {
     color: Palette.mutedText,
+    fontSize: 12,
+  },
+  infoValue: {
+    fontWeight: '600',
   },
   totalBlock: {
     borderTopWidth: 1,

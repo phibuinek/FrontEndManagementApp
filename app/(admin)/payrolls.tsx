@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/auth-context';
@@ -7,6 +7,7 @@ import { useI18n } from '@/context/i18n-context';
 import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { FormInput } from '@/components/ui/form-input';
+import { IconButton } from '@/components/ui/icon-button';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Section } from '@/components/ui/section';
 import { SearchSelect } from '@/components/ui/search-select';
@@ -28,6 +29,12 @@ type Payroll = {
 };
 
 type Employee = { _id: string; displayName?: string; username?: string; role?: string };
+
+type Commission = {
+  employee?: { _id?: string };
+  employeeAmount: number;
+  assignment?: { completedAt?: string; scheduledAt?: string };
+};
 
 const parseNumber = (value: string) => {
   const cleaned = value.replace(/,/g, '').trim();
@@ -75,6 +82,35 @@ export default function PayrollsScreen() {
     load();
   }, [token]);
 
+  useEffect(() => {
+    const autoFillCommission = async () => {
+      if (!selectedEmployeeId || !periodStart || !periodEnd) {
+        return;
+      }
+      const start = new Date(periodStart).getTime();
+      const end = new Date(periodEnd).getTime();
+      if (Number.isNaN(start) || Number.isNaN(end)) {
+        return;
+      }
+      try {
+        const commissions = await apiGet<Commission[]>('/commissions', token);
+        const total = commissions.reduce((sum, item) => {
+          if (item.employee?._id !== selectedEmployeeId) return sum;
+          const timeValue = item.assignment?.completedAt ?? item.assignment?.scheduledAt;
+          if (!timeValue) return sum;
+          const timeStamp = new Date(timeValue).getTime();
+          if (Number.isNaN(timeStamp)) return sum;
+          if (timeStamp < start || timeStamp > end) return sum;
+          return sum + (item.employeeAmount ?? 0);
+        }, 0);
+        setServiceCommission(String(Math.round(total)));
+      } catch {
+        // Ignore auto-calc failures and allow manual entry
+      }
+    };
+    autoFillCommission();
+  }, [periodEnd, periodStart, selectedEmployeeId, token]);
+
   const handleCreate = async () => {
     if (!selectedEmployeeId) {
       setError(t('errorEmployeeRequired'));
@@ -84,6 +120,7 @@ export default function PayrollsScreen() {
       setError(t('errorPayrollPeriod'));
       return;
     }
+    const isEditing = Boolean(editingId);
     setError(null);
     setLoading(true);
     try {
@@ -134,6 +171,12 @@ export default function PayrollsScreen() {
       setWorkingHours('');
       setEditingId(null);
       await load();
+      if (!isEditing) {
+        setShowCreate(false);
+        Alert.alert(t('successTitle'), t('createSuccess'));
+      } else {
+        Alert.alert(t('successTitle'), t('updateSuccess'));
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -146,6 +189,7 @@ export default function PayrollsScreen() {
     try {
       await apiDelete(`/payrolls/${id}`, token);
       await load();
+      Alert.alert(t('successTitle'), t('deleteSuccess'));
     } catch (err) {
       setError((err as Error).message);
     }
@@ -248,16 +292,30 @@ export default function PayrollsScreen() {
         }
         renderItem={({ item }) => (
           <Card>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardBadge} />
-              <View>
-                <ThemedText type="defaultSemiBold">
-                  {item.employee?.displayName ?? item.employee?.username ?? t('employeeFallback')}
-                </ThemedText>
-                <ThemedText style={styles.mutedText}>
-                  {new Date(item.periodStart).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')} -{' '}
-                  {new Date(item.periodEnd).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')}
-                </ThemedText>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardBadge} />
+                <View>
+                  <ThemedText type="defaultSemiBold">
+                    {item.employee?.displayName ?? item.employee?.username ?? t('employeeFallback')}
+                  </ThemedText>
+                  <ThemedText style={styles.mutedText}>
+                    {new Date(item.periodStart).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')} -{' '}
+                    {new Date(item.periodEnd).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={styles.actionsRow}>
+                <IconButton
+                  icon="create-outline"
+                  variant="primary"
+                  onPress={() => handleEdit(item)}
+                />
+                <IconButton
+                  icon="trash-outline"
+                  variant="danger"
+                  onPress={() => handleDelete(item._id)}
+                />
               </View>
             </View>
             <View style={styles.row}>
@@ -288,8 +346,6 @@ export default function PayrollsScreen() {
               <ThemedText style={styles.rowLabel}>{t('workingHours')}</ThemedText>
               <ThemedText>{item.workingHours}</ThemedText>
             </View>
-            <PrimaryButton label={t('edit')} variant="secondary" onPress={() => handleEdit(item)} />
-            <PrimaryButton label={t('delete')} variant="danger" onPress={() => handleDelete(item._id)} />
           </Card>
         )}
         contentContainerStyle={styles.content}
@@ -322,6 +378,12 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 4,
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   cardBadge: {
     width: 8,
     height: 40,
@@ -335,5 +397,9 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     color: Palette.mutedText,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
 });
