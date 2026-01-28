@@ -9,8 +9,8 @@ type Props = PressableProps & {
 };
 
 const variantStyles = {
-  primary: { backgroundColor: Palette.navy },
-  secondary: { backgroundColor: Palette.slate },
+  primary: { backgroundColor: Palette.accentPurple },
+  secondary: { backgroundColor: Palette.accentPink },
   danger: { backgroundColor: Palette.danger },
 };
 
@@ -32,15 +32,15 @@ export function PrimaryButton({ label, variant = 'primary', style, ...props }: P
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowColor: Palette.navyDark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 4,
   },
   text: {
     color: '#fff',

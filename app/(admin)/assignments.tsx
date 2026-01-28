@@ -150,6 +150,23 @@ export default function AssignmentsScreen() {
     return new Intl.NumberFormat('vi-VN').format(value);
   };
 
+  const getStatusLabel = (status?: string) => {
+    switch ((status ?? '').toLowerCase()) {
+      case 'scheduled':
+        return t('statusScheduled');
+      case 'assigned':
+        return t('statusAssigned');
+      case 'completed':
+        return t('statusCompleted');
+      case 'cancelled':
+        return t('statusCancelled');
+      case 'in_progress':
+        return t('statusInProgress');
+      default:
+        return status ?? t('notAvailable');
+    }
+  };
+
   const filteredAssignments = useMemo(() => {
     const term = searchText.trim().toLowerCase();
     if (!term) return assignments;
@@ -197,6 +214,7 @@ export default function AssignmentsScreen() {
                   }))}
                   selectedId={selectedCustomerId}
                   onSelect={(item) => setSelectedCustomerId(item.id)}
+                  onClear={() => setSelectedCustomerId(null)}
                 />
                 <SearchSelect
                   title={t('selectService')}
@@ -208,6 +226,7 @@ export default function AssignmentsScreen() {
                   }))}
                   selectedId={selectedServiceId}
                   onSelect={(item) => setSelectedServiceId(item.id)}
+                  onClear={() => setSelectedServiceId(null)}
                 />
                 <SearchSelect
                   title={t('selectEmployee')}
@@ -218,6 +237,7 @@ export default function AssignmentsScreen() {
                   }))}
                   selectedId={selectedEmployeeId}
                   onSelect={(item) => setSelectedEmployeeId(item.id)}
+                  onClear={() => setSelectedEmployeeId(null)}
                 />
                 <DateTimeInput label={t('time')} value={scheduledAt} onChange={setScheduledAt} />
                 <FormInput label={t('fee')} value={price} onChangeText={setPrice} keyboardType="numeric" />
@@ -247,10 +267,12 @@ export default function AssignmentsScreen() {
         renderItem={({ item }) => (
           <Card>
             <View style={styles.cardHeaderRow}>
-              <ThemedText type="defaultSemiBold">
-                {(locale === 'en' && item.customer?.nameEn ? item.customer.nameEn : item.customer?.name ?? t('customerFallback'))}{' '}
-                - {(locale === 'en' && item.service?.nameEn ? item.service.nameEn : item.service?.name ?? t('serviceFallback'))}
-              </ThemedText>
+              <View style={styles.titleBlock}>
+                <ThemedText type="defaultSemiBold" numberOfLines={2}>
+                  {(locale === 'en' && item.customer?.nameEn ? item.customer.nameEn : item.customer?.name ?? t('customerFallback'))}{' '}
+                  - {(locale === 'en' && item.service?.nameEn ? item.service.nameEn : item.service?.name ?? t('serviceFallback'))}
+                </ThemedText>
+              </View>
               <View style={styles.actionsRow}>
                 <IconButton
                   icon="create-outline"
@@ -264,10 +286,12 @@ export default function AssignmentsScreen() {
                 />
               </View>
             </View>
-            <ThemedText>{t('employee')}: {item.employee?.displayName ?? item.employee?.username ?? '-'}</ThemedText>
+            <ThemedText>
+              {t('employee')}: {item.employee?.displayName ?? item.employee?.username ?? t('notAvailable')}
+            </ThemedText>
             <ThemedText>{t('fee')}: {formatMoney(item.price)}</ThemedText>
             <ThemedText>{t('schedule')}: {new Date(item.scheduledAt).toLocaleString()}</ThemedText>
-            <ThemedText>{t('status')}: {item.status}</ThemedText>
+            <ThemedText>{t('status')}: {getStatusLabel(item.status)}</ThemedText>
           </Card>
         )}
         contentContainerStyle={styles.content}
@@ -293,8 +317,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  titleBlock: {
+    flex: 1,
+    flexShrink: 1,
+  },
   actionsRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 8,
   },
   error: {

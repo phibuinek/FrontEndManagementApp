@@ -13,6 +13,7 @@ import { Section } from '@/components/ui/section';
 import { SearchSelect } from '@/components/ui/search-select';
 import { DateTimeInput } from '@/components/ui/date-time-input';
 import { Palette } from '@/constants/theme';
+import { isWithinSalonHoursForSchedule } from '@/constants/salon-hours';
 
 type WorkSchedule = {
   _id: string;
@@ -61,6 +62,12 @@ const buildSelectedRange = (value: string) => {
 
 const PERSON_COL_WIDTH = 96;
 const DAY_COL_WIDTH = 80;
+const TIME_COL_WIDTH = 72;
+const HOUR_START = 7;
+const HOUR_END = 20;
+
+const formatHourLabel = (hour: number) =>
+  `${String(hour).padStart(2, '0')}:00 - ${String(hour + 1).padStart(2, '0')}:00`;
 
 export default function SchedulesScreen() {
   const { token } = useAuth();
@@ -101,10 +108,42 @@ export default function SchedulesScreen() {
       setError(t('errorScheduleRequired'));
       return;
     }
+    if (!editingId) {
+      const now = new Date();
+      if (new Date(startAt) < now || new Date(endAt) < now) {
+        setError(t('errorSchedulePast'));
+        return;
+      }
+    }
+    if (
+      !isWithinSalonHoursForSchedule(new Date(startAt)) ||
+      !isWithinSalonHoursForSchedule(new Date(endAt))
+    ) {
+      setError(t('errorScheduleOutsideHours'));
+      return;
+    }
+    if (new Date(startAt) >= new Date(endAt)) {
+      setError(t('errorScheduleEndBeforeStart'));
+      return;
+    }
+    const targetStart = new Date(startAt);
+    const targetEnd = new Date(endAt);
+    const overlap = schedules.some((s) => {
+      if (s.employee?._id !== selectedEmployeeId) return false;
+      if (editingId && s._id === editingId) return false;
+      const sStart = new Date(s.startAt);
+      const sEnd = new Date(s.endAt);
+      return targetStart < sEnd && targetEnd > sStart;
+    });
+    if (overlap) {
+      setError(t('errorScheduleOverlapEmployee'));
+      return;
+    }
     const isEditing = Boolean(editingId);
     setError(null);
     setLoading(true);
     try {
+      const createdStartAt = startAt;
       if (editingId) {
         await apiPatch(
           `/work-schedules/${editingId}`,
@@ -135,6 +174,7 @@ export default function SchedulesScreen() {
       setEditingId(null);
       await load();
       if (!isEditing) {
+        setCalendarWeek(new Date(createdStartAt));
         setShowCreate(false);
         Alert.alert(t('successTitle'), t('createSuccess'));
       } else {
@@ -167,11 +207,10 @@ export default function SchedulesScreen() {
     setNote(item.note ?? '');
   };
 
-  const dayLabels = useMemo(() => {
-    return locale === 'vi'
-      ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  }, [locale]);
+  const dayLabels = useMemo(
+    () => [t('dayMon'), t('dayTue'), t('dayWed'), t('dayThu'), t('dayFri'), t('daySat'), t('daySun')],
+    [t],
+  );
 
   const weekLabel = useMemo(() => {
     const weekDays = buildWeekDays(calendarWeek);
@@ -204,68 +243,81 @@ export default function SchedulesScreen() {
     return map;
   }, [schedules]);
 
-  const scheduleMap = useMemo(() => {
-    const map = new Map<string, DayShift[]>();
-    schedules.forEach((item) => {
-      const startDate = new Date(item.startAt);
-      const key = toDateKey(startDate);
-      const employeeId = item.employee?._id ?? 'unknown';
-      const timeLabel = `${formatTime24(startDate, locale)} - ${formatTime24(
-        new Date(item.endAt),
-        locale,
-      )}`;
-      const entry: DayShift = {
-        id: item._id,
-        employeeId,
-        timeLabel,
-        note: item.note ?? undefined,
-      };
-      const list = map.get(key) ?? [];
-      list.push(entry);
-      map.set(key, list);
-    });
-    return map;
-  }, [locale, schedules, t]);
-
-  const rosterRows = useMemo(() => {
-    if (employees.length) return employees;
-    const map = new Map<string, Employee>();
-    schedules.forEach((item) => {
-      if (!item.employee?._id) return;
-      map.set(item.employee._id, item.employee);
-    });
-    return Array.from(map.values());
-  }, [employees, schedules]);
-
-  const rosterMap = useMemo(() => {
-    const map = new Map<string, DayShift[]>();
-    weekDays.forEach((day) => {
-      const dayKey = toDateKey(day.date);
-      const dayShifts = scheduleMap.get(dayKey) ?? [];
-      dayShifts.forEach((shift) => {
-        const key = `${shift.employeeId}-${dayKey}`;
-        const list = map.get(key) ?? [];
-        list.push(shift);
-        map.set(key, list);
-      });
-    });
-    return map;
-  }, [scheduleMap, weekDays]);
   const filteredSchedules = useMemo(() => {
     const term = searchText.trim().toLowerCase();
-    const selectedRange = selectedDateKey ? buildSelectedRange(selectedDateKey) : null;
+    const weekStart =
+      weekDays.length > 0
+        ? new Date(weekDays[0].date.getFullYear(), weekDays[0].date.getMonth(), weekDays[0].date.getDate(), 0, 0, 0, 0)
+        : null;
+    const weekEnd =
+      weekDays.length > 0
+        ? new Date(
+            weekDays[6].date.getFullYear(),
+            weekDays[6].date.getMonth(),
+            weekDays[6].date.getDate(),
+            23,
+            59,
+            59,
+            999,
+          )
+        : null;
     return schedules.filter((item) => {
       const employeeName = (item.employee?.displayName ?? item.employee?.username ?? '').toLowerCase();
       const noteValue = (item.note ?? '').toLowerCase();
       if (term && !employeeName.includes(term) && !noteValue.includes(term)) {
         return false;
       }
-      if (!selectedRange) return true;
+      if (!weekStart || !weekEnd) return true;
       const startValue = new Date(item.startAt);
       const endValue = new Date(item.endAt);
-      return startValue <= selectedRange.end && endValue >= selectedRange.start;
+      return startValue <= weekEnd && endValue >= weekStart;
     });
-  }, [schedules, searchText, selectedDateKey]);
+  }, [schedules, searchText, weekDays]);
+
+  const hours = useMemo(
+    () => Array.from({ length: HOUR_END - HOUR_START }, (_, index) => HOUR_START + index),
+    [],
+  );
+
+  const timeGridMap = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }[]>();
+    filteredSchedules.forEach((item) => {
+      if (!item.employee?._id) return;
+      const start = new Date(item.startAt);
+      const end = new Date(item.endAt);
+      const dayKey = toDateKey(start);
+      hours.forEach((hour) => {
+        const slotStart = new Date(
+          start.getFullYear(),
+          start.getMonth(),
+          start.getDate(),
+          hour,
+          0,
+          0,
+          0,
+        );
+        const slotEnd = new Date(
+          start.getFullYear(),
+          start.getMonth(),
+          start.getDate(),
+          hour + 1,
+          0,
+          0,
+          0,
+        );
+        if (start < slotEnd && end > slotStart) {
+          const key = `${dayKey}-${hour}`;
+          const list = map.get(key) ?? [];
+          list.push({
+            id: item._id,
+            name: item.employee.displayName ?? item.employee.username ?? t('employeeFallback'),
+          });
+          map.set(key, list);
+        }
+      });
+    });
+    return map;
+  }, [filteredSchedules, hours, t]);
 
   const handleSelectDate = (value: Date) => {
     const nextKey = toDateKey(value);
@@ -357,55 +409,59 @@ export default function SchedulesScreen() {
                 </View>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.rosterGrid}>
-                <View style={styles.rosterHeaderRow}>
-                  <View style={[styles.rosterCell, styles.personHeader]}>
-                    <ThemedText style={styles.rosterHeaderText}>{t('employee')}</ThemedText>
+                <View style={styles.timeGrid}>
+                  <View style={styles.timeHeaderRow}>
+                    <View style={[styles.timeCell, styles.timeHeaderCell]}>
+                      <ThemedText style={styles.rosterHeaderText}>{t('time')}</ThemedText>
+                    </View>
+                    {weekDays.map((day, index) => (
+                      <View key={dayLabels[index]} style={[styles.timeCell, styles.dayHeaderCell]}>
+                        <ThemedText style={styles.rosterHeaderText}>
+                          {dayLabels[index]} {day.date.getDate()}
+                        </ThemedText>
+                      </View>
+                    ))}
                   </View>
-                  {weekDays.map((day, index) => (
-                    <View key={dayLabels[index]} style={[styles.rosterCell, styles.dayHeader]}>
-                      <ThemedText style={styles.rosterHeaderText}>
-                        {dayLabels[index]} {day.date.getDate()}
-                      </ThemedText>
+                  {hours.map((hour) => (
+                    <View key={hour} style={styles.timeRow}>
+                      <View style={[styles.timeCell, styles.timeLabelCell]}>
+                        <ThemedText style={styles.timeLabelText}>
+                          {formatHourLabel(hour)}
+                        </ThemedText>
+                      </View>
+                      {weekDays.map((day) => {
+                        const key = `${toDateKey(day.date)}-${hour}`;
+                        const cellEmployees = timeGridMap.get(key) ?? [];
+                        const hasShift = cellEmployees.length > 0;
+                        return (
+                          <View
+                            key={key}
+                            style={[
+                              styles.timeCell,
+                              styles.dayCell,
+                              hasShift && styles.dayCellBusy,
+                            ]}
+                          >
+                            {cellEmployees.length === 0 ? null : (
+                              <View style={styles.shiftStack}>
+                                {cellEmployees.map((item) => (
+                                  <Pressable
+                                    key={item.id}
+                                    onPress={() => handleShiftAction(item.id)}
+                                    style={styles.shiftPill}
+                                  >
+                                    <ThemedText style={styles.shiftTime} numberOfLines={1}>
+                                      {item.name}
+                                    </ThemedText>
+                                  </Pressable>
+                                ))}
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
                     </View>
                   ))}
-                </View>
-                {rosterRows.map((employee) => (
-                  <View key={employee._id} style={styles.rosterRow}>
-                    <View style={[styles.rosterCell, styles.personCell]}>
-                      <ThemedText style={styles.personText} numberOfLines={1}>
-                        {employee.displayName ?? employee.username ?? t('employeeFallback')}
-                      </ThemedText>
-                    </View>
-                    {weekDays.map((day) => {
-                      const dayKey = toDateKey(day.date);
-                      const cellKey = `${employee._id}-${dayKey}`;
-                      const shifts = rosterMap.get(cellKey) ?? [];
-                      return (
-                        <View key={cellKey} style={[styles.rosterCell, styles.shiftCell]}>
-                          {shifts.length === 0 ? null : (
-                            <View style={styles.shiftStack}>
-                              {shifts.map((shift) => (
-                                <Pressable
-                                  key={shift.id}
-                                  onPress={() => handleShiftAction(shift.id)}
-                                  style={styles.shiftPill}
-                                >
-                                  <ThemedText style={styles.shiftTime}>{shift.timeLabel}</ThemedText>
-                                  {shift.note ? (
-                                    <ThemedText style={styles.shiftNote} numberOfLines={1}>
-                                      {shift.note}
-                                    </ThemedText>
-                                  ) : null}
-                                </Pressable>
-                              ))}
-                            </View>
-                          )}
-                        </View>
-                      );
-                    })}
-                  </View>
-                ))}
                 </View>
               </ScrollView>
             </View>
@@ -420,9 +476,22 @@ export default function SchedulesScreen() {
                   }))}
                   selectedId={selectedEmployeeId}
                   onSelect={(item) => setSelectedEmployeeId(item.id)}
+                  onClear={() => setSelectedEmployeeId(null)}
                 />
-                <DateTimeInput label={t('startAt')} value={startAt} onChange={setStartAt} />
-                <DateTimeInput label={t('endAt')} value={endAt} onChange={setEndAt} />
+                <DateTimeInput
+                  label={t('startAt')}
+                  value={startAt}
+                  onChange={setStartAt}
+                  roundToHour
+                  minimumDate={editingId ? undefined : new Date()}
+                />
+                <DateTimeInput
+                  label={t('endAt')}
+                  value={endAt}
+                  onChange={setEndAt}
+                  roundToHour
+                  minimumDate={editingId ? undefined : new Date()}
+                />
                 <FormInput label={t('note')} value={note} onChangeText={setNote} />
                 <PrimaryButton
                   label={loading ? t('saving') : editingId ? t('updateSchedule') : t('createSchedule')}
@@ -468,9 +537,14 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.surface,
     borderWidth: 1,
     borderColor: Palette.border,
-    borderRadius: 16,
-    padding: 12,
-    gap: 10,
+    borderRadius: 18,
+    padding: 14,
+    gap: 12,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   calendarHeader: {
     flexDirection: 'row',
@@ -488,17 +562,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Palette.background,
+    backgroundColor: '#e5e7eb',
     borderWidth: 1,
-    borderColor: Palette.border,
+    borderColor: '#cbd5f5',
   },
   navText: {
     fontWeight: '700',
-    color: Palette.navy,
+    color: '#111827',
   },
   monthText: {
-    fontWeight: '600',
-    color: Palette.navy,
+    fontWeight: '700',
+    color: '#111827',
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -532,15 +606,17 @@ const styles = StyleSheet.create({
   },
   shiftPill: {
     width: '100%',
-    backgroundColor: `${Palette.accentBlue}22`,
-    borderRadius: 6,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   shiftTime: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    color: Palette.navy,
+    color: '#0f172a',
   },
   shiftNote: {
     fontSize: 9,
@@ -550,51 +626,57 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Palette.mutedText,
   },
-  rosterGrid: {
+  timeGrid: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Palette.border,
     overflow: 'hidden',
-    minWidth: PERSON_COL_WIDTH + DAY_COL_WIDTH * 7,
+    minWidth: TIME_COL_WIDTH + DAY_COL_WIDTH * 7,
+    backgroundColor: '#ffffff',
   },
-  rosterHeaderRow: {
+  timeHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: '#f1f3f8',
+    backgroundColor: '#f3f4f6',
   },
-  rosterRow: {
+  timeRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: Palette.border,
   },
-  rosterCell: {
+  timeCell: {
     borderRightWidth: 1,
     borderRightColor: Palette.border,
-    padding: 8,
-    minHeight: 64,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    minHeight: 56,
     justifyContent: 'center',
   },
-  personHeader: {
-    width: PERSON_COL_WIDTH,
+  timeHeaderCell: {
+    width: TIME_COL_WIDTH,
   },
-  dayHeader: {
+  dayHeaderCell: {
     width: DAY_COL_WIDTH,
+  },
+  timeLabelCell: {
+    width: TIME_COL_WIDTH,
+    backgroundColor: '#f3f4f6',
+  },
+  dayCell: {
+    width: DAY_COL_WIDTH,
+    backgroundColor: '#ffffff',
+  },
+  dayCellBusy: {
+    backgroundColor: '#dbe6ff',
+  },
+  timeLabelText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#111827',
   },
   rosterHeaderText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: Palette.navy,
-  },
-  personCell: {
-    backgroundColor: '#f8f9fc',
-    width: PERSON_COL_WIDTH,
-  },
-  personText: {
-    fontWeight: '600',
-    color: Palette.navy,
-  },
-  shiftCell: {
-    backgroundColor: '#fff',
-    width: DAY_COL_WIDTH,
+    fontWeight: '700',
+    color: '#111827',
   },
   shiftStack: {
     gap: 6,

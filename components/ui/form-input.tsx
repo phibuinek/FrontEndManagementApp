@@ -10,11 +10,11 @@ type Props = TextInputProps & {
 export function FormInput({ label, style, ...props }: Props) {
   return (
     <View style={styles.container}>
-      <ThemedText type="defaultSemiBold">{label}</ThemedText>
+      <ThemedText style={styles.label}>{label}</ThemedText>
       <TextInput
         {...props}
         style={[styles.input, style]}
-        placeholderTextColor="#8a8a8a"
+        placeholderTextColor="#9a8fa0"
       />
     </View>
   );
@@ -24,12 +24,17 @@ const styles = StyleSheet.create({
   container: {
     gap: 6,
   },
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Palette.mutedText,
+  },
   input: {
     borderWidth: 1,
     borderColor: Palette.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: Palette.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#fff7fb',
   },
 });

@@ -5,8 +5,8 @@ import { Palette } from '@/constants/theme';
 import { useI18n } from '@/context/i18n-context';
 
 export function LanguageToggle() {
-  const { locale, toggleLocale } = useI18n();
-  const label = locale === 'vi' ? 'EN' : 'VI';
+  const { locale, toggleLocale, t } = useI18n();
+  const label = locale === 'vi' ? t('languageEn') : t('languageVi');
 
   return (
     <Pressable style={styles.button} onPress={toggleLocale}>

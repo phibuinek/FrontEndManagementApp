@@ -9,6 +9,8 @@ export default function EmployeeLayout() {
         headerShown: true,
         headerTitle: t('employeeHeaderTitle'),
       }}
-    />
+    >
+      <Stack.Screen name="index" options={{ headerBackVisible: false }} />
+    </Stack>
   );
 }

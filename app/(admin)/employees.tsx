@@ -209,7 +209,7 @@ export default function EmployeesScreen() {
             <ThemedText>
               {t('role')}: {item.role === 'admin' ? t('roleAdmin') : t('roleEmployee')}
             </ThemedText>
-            <ThemedText>{t('phone')}: {item.phone ?? '-'}</ThemedText>
+            <ThemedText>{t('phone')}: {item.phone ?? t('notAvailable')}</ThemedText>
             <ThemedText>{t('active')}: {item.active ? t('yes') : t('no')}</ThemedText>
           </Card>
         )}

@@ -49,8 +49,9 @@ export default function ServicesScreen() {
   }, [token]);
 
   const handleCreate = async () => {
-    const activeName = (locale === 'en' ? nameEn : name).trim();
-    if (!activeName || !price) {
+    const nameValue = name.trim();
+    const nameEnValue = nameEn.trim();
+    if (!nameValue || !price) {
       setError(t('errorServiceRequired'));
       return;
     }
@@ -59,8 +60,8 @@ export default function ServicesScreen() {
     setLoading(true);
     try {
       const payload = {
-        name: activeName,
-        nameEn: locale === 'en' ? activeName : nameEn.trim() || undefined,
+        name: nameValue,
+        nameEn: nameEnValue || undefined,
         price: Number(price),
         durationMinutes: durationMinutes ? Number(durationMinutes) : 0,
       };
@@ -151,15 +152,14 @@ export default function ServicesScreen() {
             {showCreate && (
               <Section title={editingId ? t('editService') : t('addService')}>
                 <FormInput
-                  label={t('serviceNameLabel')}
-                  value={locale === 'en' ? nameEn : name}
-                  onChangeText={(value) => {
-                    if (locale === 'en') {
-                      setNameEn(value);
-                    } else {
-                      setName(value);
-                    }
-                  }}
+                  label={t('serviceNameVi')}
+                  value={name}
+                  onChangeText={setName}
+                />
+                <FormInput
+                  label={t('serviceNameEn')}
+                  value={nameEn}
+                  onChangeText={setNameEn}
                 />
                 <FormInput label={t('price')} value={price} onChangeText={setPrice} keyboardType="numeric" />
                 <FormInput
@@ -193,9 +193,11 @@ export default function ServicesScreen() {
         renderItem={({ item }) => (
           <Card>
             <View style={styles.cardHeaderRow}>
-              <ThemedText type="defaultSemiBold">
-                {locale === 'en' && item.nameEn ? item.nameEn : item.name}
-              </ThemedText>
+              <View style={styles.titleBlock}>
+                <ThemedText type="defaultSemiBold" numberOfLines={2}>
+                  {locale === 'en' && item.nameEn ? item.nameEn : item.name}
+                </ThemedText>
+              </View>
               <View style={styles.actionsRow}>
                 <IconButton
                   icon="create-outline"
@@ -236,6 +238,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   actionsRow: {
     flexDirection: 'row',

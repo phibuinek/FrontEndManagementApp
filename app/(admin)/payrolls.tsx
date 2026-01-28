@@ -36,6 +36,20 @@ type Commission = {
   assignment?: { completedAt?: string; scheduledAt?: string };
 };
 
+type WorkSchedule = {
+  _id: string;
+  employee?: { _id?: string };
+  checkInAt?: string;
+  checkOutAt?: string;
+};
+
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 0, 0, 0);
+  return { start, end };
+};
+
 const parseNumber = (value: string) => {
   const cleaned = value.replace(/,/g, '').trim();
   if (!cleaned) return undefined;
@@ -46,6 +60,7 @@ const parseNumber = (value: string) => {
 export default function PayrollsScreen() {
   const { token } = useAuth();
   const { t, locale } = useI18n();
+  const defaultPeriod = useMemo(() => getCurrentMonthRange(), []);
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -55,8 +70,8 @@ export default function PayrollsScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
-  const [periodStart, setPeriodStart] = useState(new Date().toISOString());
-  const [periodEnd, setPeriodEnd] = useState(new Date().toISOString());
+  const [periodStart, setPeriodStart] = useState(() => defaultPeriod.start.toISOString());
+  const [periodEnd, setPeriodEnd] = useState(() => defaultPeriod.end.toISOString());
   const [serviceSales, setServiceSales] = useState('');
   const [supplyFee, setSupplyFee] = useState('');
   const [netServiceSales, setNetServiceSales] = useState('');
@@ -81,6 +96,25 @@ export default function PayrollsScreen() {
   useEffect(() => {
     load();
   }, [token]);
+
+  const blockedEmployeeIds = useMemo(() => {
+    const start = defaultPeriod.start.getTime();
+    const end = defaultPeriod.end.getTime();
+    const blocked = new Set<string>();
+    payrolls.forEach((item) => {
+      const employeeId = item.employee?._id;
+      if (!employeeId) return;
+      if (editingId && item._id === editingId) return;
+      const periodStartValue = new Date(item.periodStart).getTime();
+      const periodEndValue = new Date(item.periodEnd).getTime();
+      if (Number.isNaN(periodStartValue) || Number.isNaN(periodEndValue)) return;
+      const overlaps = periodStartValue <= end && periodEndValue >= start;
+      if (overlaps) {
+        blocked.add(employeeId);
+      }
+    });
+    return blocked;
+  }, [defaultPeriod.end, defaultPeriod.start, editingId, payrolls]);
 
   useEffect(() => {
     const autoFillCommission = async () => {
@@ -111,9 +145,45 @@ export default function PayrollsScreen() {
     autoFillCommission();
   }, [periodEnd, periodStart, selectedEmployeeId, token]);
 
+  useEffect(() => {
+    const autoFillWorkingHours = async () => {
+      if (!selectedEmployeeId || !periodStart || !periodEnd) {
+        return;
+      }
+      const start = new Date(periodStart).getTime();
+      const end = new Date(periodEnd).getTime();
+      if (Number.isNaN(start) || Number.isNaN(end)) {
+        return;
+      }
+      try {
+        const schedules = await apiGet<WorkSchedule[]>('/work-schedules', token);
+        const totalHours = schedules.reduce((sum, item) => {
+          if (item.employee?._id !== selectedEmployeeId) return sum;
+          if (!item.checkInAt || !item.checkOutAt) return sum;
+          const checkIn = new Date(item.checkInAt).getTime();
+          const checkOut = new Date(item.checkOutAt).getTime();
+          if (Number.isNaN(checkIn) || Number.isNaN(checkOut)) return sum;
+          const overlapStart = Math.max(checkIn, start);
+          const overlapEnd = Math.min(checkOut, end);
+          if (overlapEnd <= overlapStart) return sum;
+          const hours = (overlapEnd - overlapStart) / (1000 * 60 * 60);
+          return sum + hours;
+        }, 0);
+        setWorkingHours(String(Number(totalHours.toFixed(2))));
+      } catch {
+        // Ignore auto-calc failures and allow manual entry
+      }
+    };
+    autoFillWorkingHours();
+  }, [periodEnd, periodStart, selectedEmployeeId, token]);
+
   const handleCreate = async () => {
     if (!selectedEmployeeId) {
       setError(t('errorEmployeeRequired'));
+      return;
+    }
+    if (!editingId && blockedEmployeeIds.has(selectedEmployeeId)) {
+      setError(t('errorPayrollExistsThisMonth'));
       return;
     }
     if (!periodStart || !periodEnd) {
@@ -160,8 +230,8 @@ export default function PayrollsScreen() {
         );
       }
       setSelectedEmployeeId(null);
-      setPeriodStart(new Date().toISOString());
-      setPeriodEnd(new Date().toISOString());
+      setPeriodStart(defaultPeriod.start.toISOString());
+      setPeriodEnd(defaultPeriod.end.toISOString());
       setServiceSales('');
       setSupplyFee('');
       setNetServiceSales('');
@@ -246,12 +316,18 @@ export default function PayrollsScreen() {
                 <SearchSelect
                   title={t('selectEmployee')}
                   placeholder={t('searchPlaceholder')}
-                  items={employees.map((employee) => ({
-                    id: employee._id,
-                    label: employee.displayName ?? employee.username ?? t('employeeFallback'),
-                  }))}
+              items={employees.map((employee) => {
+                const disabled = blockedEmployeeIds.has(employee._id);
+                return {
+                  id: employee._id,
+                  label: employee.displayName ?? employee.username ?? t('employeeFallback'),
+                  subtitle: disabled ? t('payrollExistsThisMonth') : undefined,
+                  disabled,
+                };
+              })}
                   selectedId={selectedEmployeeId}
                   onSelect={(item) => setSelectedEmployeeId(item.id)}
+                  onClear={() => setSelectedEmployeeId(null)}
                 />
                 <DateTimeInput label={t('periodStart')} value={periodStart} onChange={setPeriodStart} />
                 <DateTimeInput label={t('periodEnd')} value={periodEnd} onChange={setPeriodEnd} />
@@ -275,8 +351,8 @@ export default function PayrollsScreen() {
                 if (showCreate) {
                   setEditingId(null);
                   setSelectedEmployeeId(null);
-                  setPeriodStart(new Date().toISOString());
-                  setPeriodEnd(new Date().toISOString());
+                  setPeriodStart(defaultPeriod.start.toISOString());
+                  setPeriodEnd(defaultPeriod.end.toISOString());
                   setServiceSales('');
                   setSupplyFee('');
                   setNetServiceSales('');
@@ -346,6 +422,14 @@ export default function PayrollsScreen() {
               <ThemedText style={styles.rowLabel}>{t('workingHours')}</ThemedText>
               <ThemedText>{item.workingHours}</ThemedText>
             </View>
+            <View style={styles.totalRow}>
+              <ThemedText style={styles.totalLabel}>{t('totalIncome')}</ThemedText>
+              <ThemedText style={styles.totalValue}>
+                {formatMoney(
+                  (item.serviceCommission ?? 0) + (item.tip ?? 0) + (item.productSales ?? 0),
+                )}
+              </ThemedText>
+            </View>
           </Card>
         )}
         contentContainerStyle={styles.content}
@@ -397,6 +481,24 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     color: Palette.mutedText,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Palette.border,
+  },
+  totalLabel: {
+    fontWeight: '600',
+    color: Palette.navy,
+  },
+  totalValue: {
+    fontWeight: '700',
+    fontSize: 16,
+    color: Palette.navy,
   },
   actionsRow: {
     flexDirection: 'row',

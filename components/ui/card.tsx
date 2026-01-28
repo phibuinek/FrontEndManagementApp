@@ -8,16 +8,16 @@ export function Card({ style, ...props }: ViewProps) {
 
 const styles = StyleSheet.create({
   card: {
-    padding: 12,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: Palette.border,
     backgroundColor: Palette.surface,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    gap: 8,
+    shadowColor: Palette.navyDark,
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowRadius: 12,
+    elevation: 3,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -10,17 +10,61 @@ type DateTimeInputProps = {
   label: string;
   value?: string;
   onChange: (nextIso: string) => void;
+  roundToHour?: boolean;
+  /** When set, picker prevents selecting past dates (iOS). Submit validation still required for Android. */
+  minimumDate?: Date;
 };
 
-export function DateTimeInput({ label, value, onChange }: DateTimeInputProps) {
+const roundToNextHour = (value: Date) => {
+  const rounded = new Date(value);
+  if (
+    rounded.getMinutes() !== 0 ||
+    rounded.getSeconds() !== 0 ||
+    rounded.getMilliseconds() !== 0
+  ) {
+    rounded.setHours(rounded.getHours() + 1, 0, 0, 0);
+  } else {
+    rounded.setMinutes(0, 0, 0);
+  }
+  return rounded;
+};
+
+export function DateTimeInput({
+  label,
+  value,
+  onChange,
+  roundToHour = false,
+  minimumDate,
+}: DateTimeInputProps) {
   const { t, locale } = useI18n();
   const [showPicker, setShowPicker] = useState(false);
 
   const currentDate = useMemo(() => {
-    if (!value) return new Date();
+    let base: Date;
+    if (!value) {
+      base = roundToHour ? roundToNextHour(new Date()) : new Date();
+    } else {
+      const parsed = new Date(value);
+      base = Number.isNaN(parsed.getTime())
+        ? roundToHour ? roundToNextHour(new Date()) : new Date()
+        : roundToHour ? roundToNextHour(parsed) : parsed;
+    }
+    if (minimumDate && base < minimumDate) return minimumDate;
+    return base;
+  }, [roundToHour, value, minimumDate]);
+
+  useEffect(() => {
+    if (!value || !roundToHour) return;
     const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-  }, [value]);
+    if (Number.isNaN(parsed.getTime())) return;
+    if (parsed.getMinutes() === 0 && parsed.getSeconds() === 0 && parsed.getMilliseconds() === 0) {
+      return;
+    }
+    const rounded = roundToNextHour(parsed);
+    if (rounded.getTime() !== parsed.getTime()) {
+      onChange(rounded.toISOString());
+    }
+  }, [onChange, value]);
 
   const displayValue = useMemo(() => {
     if (!value) return t('selectDateTime');
@@ -33,6 +77,7 @@ export function DateTimeInput({ label, value, onChange }: DateTimeInputProps) {
     DateTimePickerAndroid.open({
       value: currentDate,
       mode: 'date',
+      minimumDate: minimumDate ?? undefined,
       onChange: (event, selectedDate) => {
         if (event.type !== 'set' || !selectedDate) return;
         const pickedDate = selectedDate;
@@ -43,13 +88,20 @@ export function DateTimeInput({ label, value, onChange }: DateTimeInputProps) {
           onChange: (timeEvent, selectedTime) => {
             if (timeEvent.type !== 'set' || !selectedTime) return;
             const merged = new Date(pickedDate);
-            merged.setHours(
-              selectedTime.getHours(),
-              selectedTime.getMinutes(),
-              0,
-              0,
-            );
-            onChange(merged.toISOString());
+            if (roundToHour) {
+              merged.setHours(selectedTime.getHours(), 0, 0, 0);
+              merged.setMinutes(0, 0, 0);
+            } else {
+              merged.setHours(
+                selectedTime.getHours(),
+                selectedTime.getMinutes(),
+                0,
+                0,
+              );
+            }
+            const toApply = roundToHour ? roundToNextHour(merged) : merged;
+            if (minimumDate && toApply < minimumDate) return;
+            onChange(toApply.toISOString());
           },
         });
       },
@@ -78,9 +130,13 @@ export function DateTimeInput({ label, value, onChange }: DateTimeInputProps) {
           value={currentDate}
           mode="datetime"
           display="spinner"
+          minimumDate={minimumDate}
           onChange={(_, selectedDate) => {
             if (selectedDate) {
-              onChange(selectedDate.toISOString());
+              const d = new Date(selectedDate);
+              const toApply = roundToHour ? roundToNextHour(d) : d;
+              if (minimumDate && toApply < minimumDate) return;
+              onChange(toApply.toISOString());
             }
           }}
         />

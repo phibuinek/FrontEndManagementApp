@@ -13,6 +13,7 @@ import { Section } from '@/components/ui/section';
 import { SearchSelect } from '@/components/ui/search-select';
 import { DateTimeInput } from '@/components/ui/date-time-input';
 import { Palette } from '@/constants/theme';
+import { isWithinSalonHoursForAppointment } from '@/constants/salon-hours';
 
 type Appointment = {
   _id: string;
@@ -116,6 +117,14 @@ export default function AppointmentsScreen() {
         setError(t('errorAppointmentCompleted'));
         return;
       }
+    }
+    if (!editingId && new Date(scheduledAt) < new Date()) {
+      setError(t('errorAppointmentPast'));
+      return;
+    }
+    if (!isWithinSalonHoursForAppointment(new Date(scheduledAt))) {
+      setError(t('errorAppointmentOutsideHours'));
+      return;
     }
     const serviceDuration =
       services.find((item) => item._id === selectedServiceId)?.durationMinutes ?? 60;
@@ -243,11 +252,10 @@ export default function AppointmentsScreen() {
     return new Intl.NumberFormat('vi-VN').format(value);
   };
 
-  const dayLabels = useMemo(() => {
-    return locale === 'vi'
-      ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  }, [locale]);
+  const dayLabels = useMemo(
+    () => [t('dayMon'), t('dayTue'), t('dayWed'), t('dayThu'), t('dayFri'), t('daySat'), t('daySun')],
+    [t],
+  );
 
   const weekLabel = useMemo(() => {
     const weekDays = buildWeekDays(calendarWeek);
@@ -450,6 +458,7 @@ export default function AppointmentsScreen() {
                   }))}
                   selectedId={selectedCustomerId}
                   onSelect={(item) => setSelectedCustomerId(item.id)}
+                  onClear={() => setSelectedCustomerId(null)}
                 />
                 <SearchSelect
                   title={t('selectService')}
@@ -461,6 +470,7 @@ export default function AppointmentsScreen() {
                   }))}
                   selectedId={selectedServiceId}
                   onSelect={(item) => setSelectedServiceId(item.id)}
+                  onClear={() => setSelectedServiceId(null)}
                 />
                 <SearchSelect
                   title={t('assignEmployeeOptional')}
@@ -471,8 +481,14 @@ export default function AppointmentsScreen() {
                   }))}
                   selectedId={selectedEmployeeId}
                   onSelect={(item) => setSelectedEmployeeId(item.id)}
+                  onClear={() => setSelectedEmployeeId(null)}
                 />
-                <DateTimeInput label={t('time')} value={scheduledAt} onChange={setScheduledAt} />
+                <DateTimeInput
+                  label={t('time')}
+                  value={scheduledAt}
+                  onChange={setScheduledAt}
+                  minimumDate={editingId ? undefined : new Date()}
+                />
                 <PrimaryButton
                   label={loading ? t('saving') : editingId ? t('updateAppointment') : t('createAppointment')}
                   onPress={handleCreate}

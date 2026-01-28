@@ -26,6 +26,17 @@ export function apiLogin(username: string, password: string) {
   });
 }
 
+export function apiPublicGet<T>(path: string) {
+  return apiRequest<T>(path);
+}
+
+export function apiPublicPost<T>(path: string, body: unknown) {
+  return apiRequest<T>(path, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 export function apiGet<T>(path: string, token: string | null) {
   return apiRequest<T>(path, { token });
 }

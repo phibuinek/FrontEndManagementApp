@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { Palette } from '@/constants/theme';
 import { useI18n } from '@/context/i18n-context';
@@ -8,6 +9,7 @@ type Item = {
   id: string;
   label: string;
   subtitle?: string;
+  disabled?: boolean;
 };
 
 type Props = {
@@ -16,6 +18,7 @@ type Props = {
   items: Item[];
   selectedId?: string | null;
   onSelect: (item: Item) => void;
+  onClear?: () => void;
 };
 
 export function SearchSelect({
@@ -24,6 +27,7 @@ export function SearchSelect({
   items,
   selectedId,
   onSelect,
+  onClear,
 }: Props) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
@@ -50,36 +54,76 @@ export function SearchSelect({
         value={query}
         onChangeText={setQuery}
         style={styles.input}
-        placeholderTextColor="#8a8a8a"
+        placeholderTextColor="#9a8fa0"
       />
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
+      <ScrollView
         style={styles.list}
-        renderItem={({ item }) => {
+        contentContainerStyle={styles.listContent}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator
+        keyboardShouldPersistTaps="handled"
+      >
+        {filtered.map((item) => {
           const selected = item.id === selectedId;
+          const disabled = item.disabled;
           return (
             <Pressable
-              style={[styles.option, selected && styles.optionSelected]}
+              key={item.id}
+              style={[
+                styles.option,
+                selected && styles.optionSelected,
+                disabled && styles.optionDisabled,
+              ]}
+              disabled={disabled}
               onPress={() => {
+                if (disabled) return;
                 onSelect(item);
                 setQuery(item.label);
               }}
             >
-              <ThemedText style={[styles.optionText, selected && styles.optionTextSelected]}>
+              <ThemedText
+                style={[
+                  styles.optionText,
+                  selected && styles.optionTextSelected,
+                  disabled && styles.optionTextDisabled,
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {item.label}
               </ThemedText>
               {item.subtitle ? (
-                <ThemedText style={styles.optionSub}>{item.subtitle}</ThemedText>
+                <ThemedText
+                  style={[styles.optionSub, disabled && styles.optionSubDisabled]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.subtitle}
+                </ThemedText>
               ) : null}
             </Pressable>
           );
-        }}
-      />
+        })}
+      </ScrollView>
       {selectedId ? (
-        <ThemedText style={styles.selectedNote}>
-          {t('selected')}: {items.find((i) => i.id === selectedId)?.label}
-        </ThemedText>
+        <View style={styles.selectedRow}>
+          <ThemedText style={styles.selectedNote} numberOfLines={1} ellipsizeMode="tail">
+            {t('selected')}: {items.find((i) => i.id === selectedId)?.label}
+          </ThemedText>
+          {onClear ? (
+            <Pressable
+              onPress={() => {
+                onClear();
+                setQuery('');
+              }}
+              style={styles.clearButton}
+              hitSlop={8}
+              accessibilityLabel={t('clearSelection')}
+            >
+              <Ionicons name="close-circle" size={22} color={Palette.mutedText} />
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
@@ -88,30 +132,38 @@ export function SearchSelect({
 const styles = StyleSheet.create({
   container: {
     gap: 8,
+    marginBottom: 12,
+    overflow: 'hidden',
   },
   input: {
     borderWidth: 1,
     borderColor: Palette.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: Palette.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#fff7fb',
   },
   list: {
     maxHeight: 240,
     borderWidth: 1,
     borderColor: Palette.border,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: Palette.surface,
+  },
+  listContent: {
+    paddingBottom: 8,
   },
   option: {
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f1f1',
+    borderBottomColor: '#f3e9f3',
   },
   optionSelected: {
-    backgroundColor: '#eef2f8',
+    backgroundColor: '#f4e8f8',
+  },
+  optionDisabled: {
+    backgroundColor: '#f7f2f7',
   },
   optionText: {
     fontWeight: '600',
@@ -119,13 +171,29 @@ const styles = StyleSheet.create({
   optionTextSelected: {
     color: Palette.navy,
   },
+  optionTextDisabled: {
+    color: Palette.mutedText,
+  },
   optionSub: {
     color: Palette.mutedText,
     fontSize: 12,
     marginTop: 2,
   },
+  optionSubDisabled: {
+    color: Palette.slate,
+  },
+  selectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
+  },
   selectedNote: {
     color: Palette.slate,
     fontSize: 12,
+    flex: 1,
+  },
+  clearButton: {
+    padding: 4,
   },
 });

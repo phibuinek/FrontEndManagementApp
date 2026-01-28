@@ -9,21 +9,21 @@ const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
 export const Palette = {
-  navy: '#1b2a4a',
-  navyDark: '#13203a',
-  slate: '#475569',
-  background: '#eef1f6',
+  navy: '#3a214f',
+  navyDark: '#2a173a',
+  slate: '#6f5d73',
+  background: '#f9f4f8',
   surface: '#ffffff',
-  border: '#d7dde6',
-  mutedText: '#667085',
+  border: '#eaddea',
+  mutedText: '#7a6f7f',
   danger: '#b42318',
   success: '#2e7d32',
-  accentBlue: '#5b6cff',
-  accentPurple: '#7b5cff',
-  accentGreen: '#2fb171',
-  accentOrange: '#f39c4a',
-  accentTeal: '#3aa7a1',
-  accentPink: '#e062a7',
+  accentBlue: '#7c9bff',
+  accentPurple: '#a87bff',
+  accentGreen: '#5bbf9a',
+  accentOrange: '#f2a36b',
+  accentTeal: '#6dc6c2',
+  accentPink: '#f08ac3',
 };
 
 export const Colors = {

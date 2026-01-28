@@ -18,6 +18,12 @@ const iconColors: Record<Variant, string> = {
   neutral: Palette.slate,
 };
 
+const iconBackgrounds: Record<Variant, string> = {
+  primary: `${Palette.accentPurple}22`,
+  danger: '#fde8e8',
+  neutral: '#f7f2f7',
+};
+
 export function IconButton({
   icon,
   onPress,
@@ -25,7 +31,11 @@ export function IconButton({
   size = 18,
 }: IconButtonProps) {
   return (
-    <Pressable onPress={onPress} style={styles.button} accessibilityRole="button">
+    <Pressable
+      onPress={onPress}
+      style={[styles.button, { backgroundColor: iconBackgrounds[variant] }]}
+      accessibilityRole="button"
+    >
       <Ionicons name={icon} size={size} color={iconColors[variant]} />
     </Pressable>
   );
@@ -33,12 +43,11 @@ export function IconButton({
 
 const styles = StyleSheet.create({
   button: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: Palette.border,
-    backgroundColor: Palette.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },

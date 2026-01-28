@@ -7,6 +7,8 @@ export default function AdminLayout() {
         headerShown: true,
         headerTitle: 'Admin',
       }}
-    />
+    >
+      <Stack.Screen name="index" options={{ headerBackVisible: false }} />
+    </Stack>
   );
 }

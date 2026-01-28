@@ -80,10 +80,10 @@ export default function EmployeeAssignmentsScreen() {
         renderItem={({ item }) => {
           const statusLabel =
             item.status === 'completed'
-              ? 'Completed'
+              ? t('statusCompleted')
               : item.status === 'in_progress'
-              ? 'In Progress'
-              : 'Scheduled';
+              ? t('statusInProgress')
+              : t('statusScheduled');
           const statusColor =
             item.status === 'completed'
               ? Palette.accentGreen
@@ -239,8 +239,13 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    shadowColor: Palette.navyDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 3,
   },
   actionText: {
     color: '#fff',
@@ -257,9 +262,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: Palette.surface,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: '#fffafc',
     borderWidth: 1,
     borderColor: Palette.border,
     flexGrow: 1,

@@ -69,9 +69,20 @@ export default function EmployeeScheduleScreen() {
 
   const checkIn = async (id: string) => {
     try {
-      await apiPatch(`/work-schedules/${id}/check-in`, {}, token);
+      const result = await apiPatch<{
+        lateMinutes?: number;
+        isLate?: boolean;
+      }>(`/work-schedules/${id}/check-in`, {}, token);
       await load();
-      Alert.alert(t('successTitle'), t('checkInSuccess'));
+      if (result?.isLate) {
+        const minutes = result.lateMinutes ?? 0;
+        Alert.alert(
+          t('lateCheckInTitle'),
+          t('lateCheckInWarning').replace('{minutes}', String(minutes)),
+        );
+      } else {
+        Alert.alert(t('successTitle'), t('checkInSuccess'));
+      }
     } catch (err) {
       setError((err as Error).message);
     }
@@ -87,11 +98,10 @@ export default function EmployeeScheduleScreen() {
     }
   };
 
-  const dayLabels = useMemo(() => {
-    return locale === 'vi'
-      ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  }, [locale]);
+  const dayLabels = useMemo(
+    () => [t('dayMon'), t('dayTue'), t('dayWed'), t('dayThu'), t('dayFri'), t('daySat'), t('daySun')],
+    [t],
+  );
 
   const weekLabel = useMemo(() => {
     const weekDays = buildWeekDays(calendarWeek);
@@ -268,7 +278,7 @@ export default function EmployeeScheduleScreen() {
               <View style={styles.infoRow}>
                 <InfoPill
                   label={t('note')}
-                  value={item.note ?? '-'}
+                  value={item.note ?? t('notAvailable')}
                   color={Palette.accentPurple}
                 />
                 <InfoPill
@@ -478,8 +488,13 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    shadowColor: Palette.navyDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 3,
   },
   actionText: {
     color: '#fff',
@@ -496,9 +511,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: Palette.surface,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: '#fffafc',
     borderWidth: 1,
     borderColor: Palette.border,
     flexGrow: 1,

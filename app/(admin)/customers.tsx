@@ -196,8 +196,8 @@ export default function CustomersScreen() {
                 />
               </View>
             </View>
-            <ThemedText>{t('phone')}: {item.phone ?? '-'}</ThemedText>
-            <ThemedText>{t('note')}: {item.note ?? '-'}</ThemedText>
+            <ThemedText>{t('phone')}: {item.phone ?? t('notAvailable')}</ThemedText>
+            <ThemedText>{t('note')}: {item.note ?? t('notAvailable')}</ThemedText>
           </Card>
         )}
         contentContainerStyle={styles.content}

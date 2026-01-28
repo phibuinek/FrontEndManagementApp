@@ -92,16 +92,32 @@ export default function EmployeeAppointmentsScreen() {
     return new Intl.NumberFormat('vi-VN').format(value);
   };
 
+  const getStatusLabel = (status?: string) => {
+    switch ((status ?? '').toLowerCase()) {
+      case 'scheduled':
+        return t('statusScheduled');
+      case 'assigned':
+        return t('statusAssigned');
+      case 'completed':
+        return t('statusCompleted');
+      case 'cancelled':
+        return t('statusCancelled');
+      case 'in_progress':
+        return t('statusInProgress');
+      default:
+        return status ?? t('notAvailable');
+    }
+  };
+
   const visibleAppointments = useMemo(
     () => appointments,
     [appointments],
   );
 
-  const dayLabels = useMemo(() => {
-    return locale === 'vi'
-      ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  }, [locale]);
+  const dayLabels = useMemo(
+    () => [t('dayMon'), t('dayTue'), t('dayWed'), t('dayThu'), t('dayFri'), t('daySat'), t('daySun')],
+    [t],
+  );
 
   const weekLabel = useMemo(() => {
     const weekDays = buildWeekDays(calendarWeek);
@@ -258,10 +274,12 @@ export default function EmployeeAppointmentsScreen() {
         renderItem={({ item }) => (
           <Card>
             <View style={styles.cardHeaderRow}>
-              <ThemedText type="defaultSemiBold">
-                {(locale === 'en' && item.customer?.nameEn ? item.customer.nameEn : item.customer?.name ?? t('customerFallback'))}{' '}
-                - {(locale === 'en' && item.service?.nameEn ? item.service.nameEn : item.service?.name ?? t('serviceFallback'))}
-              </ThemedText>
+              <View style={styles.titleBlock}>
+                <ThemedText type="defaultSemiBold" numberOfLines={2}>
+                  {(locale === 'en' && item.customer?.nameEn ? item.customer.nameEn : item.customer?.name ?? t('customerFallback'))}{' '}
+                  - {(locale === 'en' && item.service?.nameEn ? item.service.nameEn : item.service?.name ?? t('serviceFallback'))}
+                </ThemedText>
+              </View>
               <View style={styles.actionsRow}>
                 {item.status === 'scheduled' && (
                   <ActionButton
@@ -285,9 +303,9 @@ export default function EmployeeAppointmentsScreen() {
               />
             </View>
             <ThemedText>
-              {t('employee')}: {item.assignedEmployee?.displayName ?? item.assignedEmployee?.username ?? '-'}
+              {t('employee')}: {item.assignedEmployee?.displayName ?? item.assignedEmployee?.username ?? t('notAvailable')}
             </ThemedText>
-            <ThemedText>{t('status')}: {item.status}</ThemedText>
+            <ThemedText>{t('status')}: {getStatusLabel(item.status)}</ThemedText>
           </Card>
         )}
         ListEmptyComponent={<ThemedText style={styles.empty}>{t('noData')}</ThemedText>}
@@ -451,14 +469,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
   actionsRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 8,
   },
   actionButton: {
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    shadowColor: Palette.navyDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 3,
   },
   actionText: {
     color: '#fff',
@@ -476,9 +504,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: Palette.surface,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: '#fffafc',
     borderWidth: 1,
     borderColor: Palette.border,
     flexGrow: 1,

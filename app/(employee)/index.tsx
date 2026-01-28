@@ -42,7 +42,7 @@ export default function EmployeeHome() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/(auth)/login');
+    router.replace('/(public)');
   };
 
   const actions = useMemo(
@@ -72,7 +72,7 @@ export default function EmployeeHome() {
               <ThemedText type="title" lightColor="#ffffff">
                 {t('hello')}, {user?.displayName ?? user?.username}
               </ThemedText>
-              <ThemedText style={styles.heroSubtitle} lightColor="#dbe3f4">
+              <ThemedText style={styles.heroSubtitle} lightColor="#f6effb">
                 {t('employeeDashboard')}
               </ThemedText>
             </View>
@@ -80,7 +80,7 @@ export default function EmployeeHome() {
           </View>
           <TextInput
             placeholder={t('searchPlaceholder')}
-            placeholderTextColor="#a9b3c6"
+            placeholderTextColor="#9a8fa0"
             style={styles.search}
             value={searchText}
             onChangeText={setSearchText}
@@ -117,8 +117,7 @@ export default function EmployeeHome() {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <View style={[styles.statCard, { borderColor: color }]}>
-      <View style={[styles.statAccent, { backgroundColor: color }]} />
+    <View style={[styles.statCard, { backgroundColor: `${color}18` }]}>
       <View style={styles.statHeader}>
         <View style={[styles.dot, { backgroundColor: color }]} />
         <ThemedText style={[styles.statValue, { color }]}>{value}</ThemedText>
@@ -130,8 +129,8 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 
 function ActionCard({ label, color, onPress }: { label: string; color: string; onPress: () => void }) {
   return (
-    <Pressable style={styles.actionCard} onPress={onPress}>
-      <View style={[styles.actionBadge, { backgroundColor: `${color}22` }]}>
+    <Pressable style={[styles.actionCard, { backgroundColor: `${color}14` }]} onPress={onPress}>
+      <View style={styles.actionBadge}>
         <View style={[styles.dot, { backgroundColor: color }]} />
       </View>
       <ThemedText style={styles.actionLabel}>{label}</ThemedText>
@@ -148,14 +147,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   hero: {
-    backgroundColor: Palette.navy,
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: Palette.accentPurple,
+    borderRadius: 24,
+    padding: 18,
     gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
+    shadowColor: Palette.navyDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
     elevation: 4,
   },
   heroRow: {
@@ -168,12 +167,12 @@ const styles = StyleSheet.create({
   },
   search: {
     borderWidth: 1,
-    borderColor: Palette.navyDark,
-    borderRadius: 14,
+    borderColor: '#f2e6f6',
+    borderRadius: 16,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#203254',
-    color: '#fff',
+    paddingVertical: 12,
+    backgroundColor: '#fff7fb',
+    color: Palette.navy,
   },
   section: {
     gap: 12,
@@ -185,16 +184,14 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 14,
-    backgroundColor: Palette.surface,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    borderWidth: 0,
+    shadowColor: Palette.navyDark,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   statValue: {
     fontSize: 20,
@@ -227,24 +224,22 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: '48%',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 14,
-    backgroundColor: Palette.surface,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    borderWidth: 0,
+    shadowColor: Palette.navyDark,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   actionLabel: {
     fontWeight: '600',
   },
   actionBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
